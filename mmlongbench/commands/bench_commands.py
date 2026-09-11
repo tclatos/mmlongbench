@@ -1,13 +1,12 @@
-"""Benchmark CLI commands for MMLongBench."""
+"""Benchmark CLI commands for MMLongBench-Doc."""
 
 from __future__ import annotations
 
-import tarfile
 from pathlib import Path
 from typing import Annotated
 
 import typer
-from genai_graph.bench.adapters.base import download_hf_file, get_benchmark_adapter
+from genai_graph.bench.adapters.base import get_benchmark_adapter
 from genai_graph.bench.config import load_bench_profile, load_env
 from genai_graph.core.commands_bench import BenchCommands as BaseBenchCommands
 from loguru import logger
@@ -18,25 +17,17 @@ console = Console()
 
 
 class BenchCommands(BaseBenchCommands):
-    """Extended benchmark commands with MMLongBench dataset downloading."""
+    """Extended benchmark commands with MMLongBench-Doc dataset downloading."""
 
     def register_sub_commands(self, cli_app: typer.Typer) -> None:
         super().register_sub_commands(cli_app)
 
         @cli_app.command("download")
         def download_dataset(
-            task: Annotated[
-                str,
-                typer.Option("-t", "--task", help="Task subset to download (documentQA, all)"),
-            ] = "documentQA",
             docs: Annotated[
                 bool,
                 typer.Option("--docs/--no-docs", help="Download raw PDF documents for benchmark questions"),
             ] = True,
-            images: Annotated[
-                bool,
-                typer.Option("--images/--no-images", help="Download and extract raw page image tar.gz archives"),
-            ] = False,
             limit: Annotated[
                 int | None,
                 typer.Option("-n", "--limit", help="Limit number of PDF documents to download"),
@@ -50,12 +41,12 @@ class BenchCommands(BaseBenchCommands):
                 typer.Option("-c", "--config", help="Path to bench YAML configuration file"),
             ] = None,
         ) -> None:
-            """Download MMLongBench questions and PDF documents from Hugging Face.
+            """Download MMLongBench-Doc questions and PDF documents from Hugging Face.
 
             Examples:
                 cli bench download
                 cli bench download --docs -n 10
-                cli bench download --images
+                cli bench download --no-docs
             """
             load_env()
             cfg_p = Path(config_path) if config_path else None
@@ -65,7 +56,7 @@ class BenchCommands(BaseBenchCommands):
             dataset_dir = cfg.project_root / "data" / "mmlongbench"
             pdfs_dir = Path(cfg.pdfs_dir)
 
-            console.print(f"[bold cyan]Fetching MMLongBench dataset metadata (task: {task})...[/bold cyan]")
+            console.print("[bold cyan]Fetching MMLongBench-Doc questions from Hugging Face...[/bold cyan]")
             questions = adapter.load_dataset(cache_dir=dataset_dir)
             console.print(f"[bold green]✓ Loaded {len(questions)} questions into {dataset_dir}[/bold green]")
 
@@ -95,18 +86,8 @@ class BenchCommands(BaseBenchCommands):
 
                 console.print(f"[bold green]✓ PDF documents ready in {pdfs_dir}[/bold green]")
 
-            if images:
-                console.print("[bold cyan]Downloading DocumentQA images archive (5_docqa_image.tar.gz)...[/bold cyan]")
-                images_tar = download_hf_file(
-                    repo_id="ZhaoweiWang/MMLongBench",
-                    filename="5_docqa_image.tar.gz",
-                    repo_type="dataset",
-                    output_dir=cfg.project_root / "data",
-                )
-                console.print(f"[bold green]✓ Downloaded {images_tar}. Extracting images...[/bold green]")
-                with tarfile.open(images_tar, "r:gz") as tar:
-                    tar.extractall(path=cfg.project_root / "data")
-                console.print(f"[bold green]✓ Extracted images to {cfg.project_root}/data/mmlb_image[/bold green]")
+
+__all__ = ["BenchCommands"]
 
 
 __all__ = ["BenchCommands"]

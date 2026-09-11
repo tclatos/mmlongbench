@@ -1,4 +1,10 @@
-"""MMLongBench dataset adapter for multi-modal long-document understanding."""
+"""MMLongBench-Doc dataset adapter for multi-modal long-document understanding.
+
+Reference:
+- GitHub: https://github.com/mayubo2333/MMLongBench-Doc
+- Hugging Face: https://huggingface.co/datasets/yubo2333/MMLongBench-Doc
+- Paper: "MMLongBench-Doc: Benchmarking Long-context Document Understanding with Visualizations" (arXiv:2407.01523)
+"""
 
 from __future__ import annotations
 
@@ -15,11 +21,10 @@ from genai_graph.bench.adapters.base import (
 from genai_graph.bench.models import BenchQuestion
 from loguru import logger
 
-HF_DOC_DATASET_ID = "yubo2333/MMLongBench-Doc"
-HF_FULL_DATASET_ID = "ZhaoweiWang/MMLongBench"
+HF_DATASET_ID = "yubo2333/MMLongBench-Doc"
 
-MMLONGBENCH_JUDGE_RUBRIC = """\
-You are a strict-but-fair grader for MMLongBench, a benchmark evaluating multi-modal comprehension of very long documents (PDF reports, financial disclosures, academic papers, and multi-page slide decks).
+MMLONGBENCH_DOC_JUDGE_RUBRIC = """\
+You are a strict-but-fair grader for MMLongBench-Doc, a benchmark evaluating multi-modal comprehension of very long documents (PDF reports, financial disclosures, academic papers, administrative guidelines, and technical publications).
 Compare the agent's answer to the gold answer using the provided evidence and justification.
 
 Return ONLY a JSON object with exactly these keys:
@@ -31,11 +36,11 @@ Return ONLY a JSON object with exactly these keys:
   "rationale": "<one sentence>"
 }
 
-Equivalence and grading rules:
+Equivalence and grading rules (MMLongBench-Doc evaluation protocol):
 - Numerical accuracy: rounding differences are IGNORED when they do not change the conclusion (e.g. 18.3% is equivalent to 18.29%, 0.1829, or 18%). Fractions, percentages, and decimals are equivalent.
 - Text & Categorical answers: Case-insensitive, punctuation-insensitive string matching. If the gold answer is a name, title, category, or entity, and the agent includes the key entity name or synonymous formulation, it is correct.
 - List answers: The agent answer is correct if it covers all or the majority of the required items without hallucinations.
-- Unanswerable questions: If the gold answer states 'Not answerable', 'Unanswerable', or 'N/A', the agent is correct if it explicitly determines that the document does not provide the requested information.
+- Unanswerable questions: 22.5% of questions in MMLongBench-Doc are designed to be unanswerable to test hallucination detection. If the gold answer states 'Not answerable', 'Unanswerable', or 'N/A', the agent is correct if it explicitly determines that the document does not provide the requested information.
 - Superset answers: If the agent answer is a superset of the gold answer and conveys the exact factual answer clearly, it is correct.
 
 Tiers:
@@ -131,9 +136,9 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
             logger.info("Loading questions from cached parquet: {}", parquet_cache)
             df = pd.read_parquet(parquet_cache)
         else:
-            logger.info("Fetching MMLongBench-Doc dataset from Hugging Face ({})", HF_DOC_DATASET_ID)
+            logger.info("Fetching MMLongBench-Doc dataset from Hugging Face ({})", HF_DATASET_ID)
             hf_path = download_hf_file(
-                repo_id=HF_DOC_DATASET_ID,
+                repo_id=HF_DATASET_ID,
                 filename="data/train-00000-of-00001.parquet",
                 repo_type="dataset",
             )
@@ -178,11 +183,11 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
                 questions.append(bq)
                 fh.write(bq.model_dump_json() + "\n")
 
-        logger.info("Initialized {} MMLongBench questions in {}", len(questions), questions_jsonl)
+        logger.info("Initialized {} MMLongBench-Doc questions in {}", len(questions), questions_jsonl)
         return questions
 
     def fetch_document(self, doc_name: str, output_dir: Path) -> Path:
-        """Download document PDF from Hugging Face Hub or assemble from page images."""
+        """Download document PDF from Hugging Face Hub (yubo2333/MMLongBench-Doc)."""
         output_dir.mkdir(parents=True, exist_ok=True)
         norm_name = self.resolve_doc_name(doc_name)
         target = output_dir / f"{norm_name}.pdf"
@@ -191,11 +196,11 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
             logger.debug("PDF already present: {}", target)
             return target
 
-        # 1. Try downloading pre-built PDF directly from yubo2333/MMLongBench-Doc
+        # 1. Download pre-built PDF directly from yubo2333/MMLongBench-Doc
         try:
-            logger.info("Downloading PDF for {} from {}/documents", norm_name, HF_DOC_DATASET_ID)
+            logger.info("Downloading PDF for {} from {}/documents", norm_name, HF_DATASET_ID)
             downloaded = download_hf_file(
-                repo_id=HF_DOC_DATASET_ID,
+                repo_id=HF_DATASET_ID,
                 filename=f"documents/{norm_name}.pdf",
                 repo_type="dataset",
                 output_dir=output_dir,
@@ -203,35 +208,19 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
             if downloaded.exists() and downloaded.stat().st_size > 0:
                 return downloaded
         except Exception as exc:
-            logger.warning("Could not download PDF from {} for {}: {}", HF_DOC_DATASET_ID, norm_name, exc)
+            logger.warning("Could not download PDF from {} for {}: {}", HF_DATASET_ID, norm_name, exc)
 
-        # 2. Fallback: check if local image directory exists and assemble into PDF
-        images_dir = output_dir.parent / "mmlb_image" / norm_name
-        if images_dir.exists() and any(images_dir.iterdir()):
-            try:
-                from PIL import Image
-
-                image_files = sorted(
-                    [p for p in images_dir.glob("*") if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")],
-                    key=lambda p: int("".join(filter(str.isdigit, p.stem)) or "0"),
-                )
-                if image_files:
-                    logger.info("Assembling {} page images into PDF for {}", len(image_files), norm_name)
-                    images = [Image.open(f).convert("RGB") for f in image_files]
-                    images[0].save(target, save_all=True, append_images=images[1:])
-                    return target
-            except Exception as exc:
-                logger.error("Failed to assemble images into PDF for {}: {}", norm_name, exc)
-
-        # 3. Last resort placeholder
+        # 2. Fallback placeholder
         logger.warning("Document {} could not be fetched. Creating placeholder.", norm_name)
         target.write_text(f"Placeholder for {norm_name}", encoding="utf-8")
         return target
 
     def get_judge_rubric(self) -> str:
-        return MMLONGBENCH_JUDGE_RUBRIC
+        return MMLONGBENCH_DOC_JUDGE_RUBRIC
 
 
-# Backward compatibility alias
+# Backward compatibility aliases
+MMLongBenchDocAdapter = MMLongBenchAdapter
+DefaultBenchmarkAdapter = MMLongBenchAdapter
 DefaultBenchmarkAdapter = MMLongBenchAdapter
 

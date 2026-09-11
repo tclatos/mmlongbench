@@ -1,0 +1,138 @@
+# MMLongBench evaluation configurations and document conversion settings.
+# Select active profile via CLI `--profile <name>` (defaults to `default_profile`).
+# Outcome paths write under a dedicated directory per bench profile.
+
+default_profile: mistral_glm
+adapter: mmlongbench.adapter.MMLongBenchAdapter
+
+# Shared paths across all bench profiles using OmegaConf variable interpolation.
+paths:
+  dataset_dir: ${paths.data_root}/mmlongbench
+  pdfs_dir: ${paths.data_root}/pdfs
+  markdown_dir: ${paths.data_root}/markdown_multi
+  kg_db: ${paths.data_root}/kg/mmlongbench_multi.db
+  runs: ${paths.data_root}/mmlongbench/{profile}/runs.jsonl
+  scores: ${paths.data_root}/mmlongbench/{profile}/scores.jsonl
+  scores_summary: ${paths.data_root}/mmlongbench/{profile}/scores_summary.json
+
+graph_db:
+  default: ${paths.kg_db}   # used by 'cli docgraph' commands
+
+
+bench_profiles:
+  mistral_glm:
+    description: "GLM 5.2 agent with Mistral OCR and DeepSeek V4 Pro judge"
+    markdownize_profile: best
+    monitoring: null
+
+    llms:
+      agent: glm_5.2@openrouter
+      build: deepseek-v4-flash-0731@openrouter
+      judge: DeepSeek-V4-Pro-0813@openrouter
+
+    build:
+      skip_ocr: false
+      force: false
+      llm: deepseek-v4-flash-0731@openrouter
+      structure_strategy: auto
+      summaries: true
+      workers: 4
+      summary_min_tokens: 800
+      context_safety_ratio: 0.9
+      embeddings: qwen3_06b@deepinfra
+      fts: true
+      chunk_size_tokens: 1500
+
+    files:
+      pathspecs:
+        - "*"
+      limit: null
+
+    agent:
+      profile: default
+      folder_id: null
+      concurrency: 10
+
+    judge:
+      enabled: true
+      concurrency: 5
+
+  flash_agent:
+    description: "Fast Flash agent and judge for quick verification"
+    markdownize_profile: fast
+    monitoring: null
+
+    llms:
+      agent: deepseek-v4-flash-0731@openrouter
+      build: deepseek-v4-flash-0731@openrouter
+      judge: deepseek-v4-flash-0731@openrouter
+
+    build:
+      skip_ocr: false
+      structure_strategy: auto
+      summaries: true
+      workers: 4
+      embeddings: qwen3_06b@deepinfra
+      fts: true
+
+    files:
+      pathspecs:
+        - "*"
+      limit: null
+
+    agent:
+      profile: default
+      folder_id: null
+      concurrency: 5
+
+    judge:
+      enabled: true
+      concurrency: 5
+
+  default:
+    description: "Default fallback benchmark profile"
+    markdownize_profile: fast
+    monitoring: null
+
+    llms:
+      agent: default
+      judge: default
+
+    build:
+      skip_ocr: false
+      structure_strategy: auto
+      summaries: true
+      workers: 4
+
+    files:
+      pathspecs:
+        - "*"
+      limit: null
+
+    agent:
+      profile: default
+      folder_id: null
+      concurrency: 5
+
+    judge:
+      concurrency: 5
+
+
+# Document converter definitions and pathspec-driven profiles
+markdownize_profiles:
+  fast:
+    rules:
+      - pathspec: "**/*.{xlsx,xls,ods}"
+        converter: messy_xls
+      - pathspec: "**/*"
+        converter: anydoc
+
+  best:
+    rules:
+      - pathspec: "**/*.{xlsx,xls,ods}"
+        converter: messy_xls
+      - pathspec: "**/*.{ppt,pptx,odp,doc,docx,odt,rtf}"
+        converter: mistral_ocr
+      - pathspec: "**/*"
+        converter: mistral_ocr
+

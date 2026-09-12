@@ -40,9 +40,16 @@ class AgentCommands(CliTopCommand):
 
         @cli_app.command()
         def chat(
-            query: Annotated[str | None, typer.Argument(help="Query to send (omit for interactive mode)")] = None,
-            profile: Annotated[str, typer.Option("-p", "--profile", help="Agent profile key")] = "default",
-            llm: Annotated[str | None, typer.Option("-m", "--llm", help="LLM identifier override")] = None,
+            query: Annotated[
+                str | None,
+                typer.Argument(help="Query to send (omit for interactive mode)"),
+            ] = None,
+            profile: Annotated[
+                str, typer.Option("-p", "--profile", help="Agent profile key")
+            ] = "default",
+            llm: Annotated[
+                str | None, typer.Option("-m", "--llm", help="LLM identifier override")
+            ] = None,
         ) -> None:
             """Chat with a configured agent profile via the unified harness layer.
 
@@ -56,7 +63,9 @@ class AgentCommands(CliTopCommand):
                 cli agent chat            # interactive multi-turn mode
             """
             try:
-                harness = create_harness(profile, llm_override=llm, force_memory_checkpointer=True)
+                harness = create_harness(
+                    profile, llm_override=llm, force_memory_checkpointer=True
+                )
             except ValueError as exc:
                 console.print(f"[red]Error:[/red] {exc}")
                 raise typer.Exit(1) from exc

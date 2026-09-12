@@ -93,7 +93,11 @@ def generate_ppt(
 
             # Add image to slide
             slide.shapes.add_picture(
-                img_bytes, left, top, Inches(new_width_emu / 914400), Inches(new_height_emu / 914400)
+                img_bytes,
+                left,
+                top,
+                Inches(new_width_emu / 914400),
+                Inches(new_height_emu / 914400),
             )
 
         # Add speaker notes if available in plan
@@ -127,7 +131,9 @@ def generate_ppt(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Generate PowerPoint presentation from slide images")
+    parser = argparse.ArgumentParser(
+        description="Generate PowerPoint presentation from slide images"
+    )
     parser.add_argument(
         "--plan-file",
         required=True,

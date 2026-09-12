@@ -18,6 +18,9 @@ data/kg/
 data/.cache/
 data/llm_cache/
 data/hf_models/
+data/edenai_models.json
+data/edenai_eur_models.json
+data/models_dev.json
 # Markdown conversions
 data/markdown/
 data/markdown_multi/

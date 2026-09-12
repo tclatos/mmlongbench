@@ -11,7 +11,13 @@ from genai_graph.bench.config import load_bench_profile, load_env
 from genai_graph.core.commands_bench import BenchCommands as BaseBenchCommands
 from loguru import logger
 from rich.console import Console
-from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+)
 
 console = Console()
 
@@ -26,11 +32,16 @@ class BenchCommands(BaseBenchCommands):
         def download_dataset(
             docs: Annotated[
                 bool,
-                typer.Option("--docs/--no-docs", help="Download raw PDF documents for benchmark questions"),
+                typer.Option(
+                    "--docs/--no-docs",
+                    help="Download raw PDF documents for benchmark questions",
+                ),
             ] = True,
             limit: Annotated[
                 int | None,
-                typer.Option("-n", "--limit", help="Limit number of PDF documents to download"),
+                typer.Option(
+                    "-n", "--limit", help="Limit number of PDF documents to download"
+                ),
             ] = None,
             profile: Annotated[
                 str | None,
@@ -38,7 +49,9 @@ class BenchCommands(BaseBenchCommands):
             ] = None,
             config_path: Annotated[
                 str | None,
-                typer.Option("-c", "--config", help="Path to bench YAML configuration file"),
+                typer.Option(
+                    "-c", "--config", help="Path to bench YAML configuration file"
+                ),
             ] = None,
         ) -> None:
             """Download MMLongBench-Doc questions and PDF documents from Hugging Face.
@@ -56,16 +69,22 @@ class BenchCommands(BaseBenchCommands):
             dataset_dir = cfg.project_root / "data" / "mmlongbench"
             pdfs_dir = Path(cfg.pdfs_dir)
 
-            console.print("[bold cyan]Fetching MMLongBench-Doc questions from Hugging Face...[/bold cyan]")
+            console.print(
+                "[bold cyan]Fetching MMLongBench-Doc questions from Hugging Face...[/bold cyan]"
+            )
             questions = adapter.load_dataset(cache_dir=dataset_dir)
-            console.print(f"[bold green]✓ Loaded {len(questions)} questions into {dataset_dir}[/bold green]")
+            console.print(
+                f"[bold green]✓ Loaded {len(questions)} questions into {dataset_dir}[/bold green]"
+            )
 
             if docs:
                 all_docs = adapter.get_available_docs(cache_dir=dataset_dir)
                 if limit and limit > 0:
                     all_docs = all_docs[:limit]
 
-                console.print(f"[bold cyan]Downloading {len(all_docs)} PDF documents to {pdfs_dir}...[/bold cyan]")
+                console.print(
+                    f"[bold cyan]Downloading {len(all_docs)} PDF documents to {pdfs_dir}...[/bold cyan]"
+                )
                 pdfs_dir.mkdir(parents=True, exist_ok=True)
 
                 with Progress(
@@ -77,18 +96,21 @@ class BenchCommands(BaseBenchCommands):
                 ) as progress:
                     task_id = progress.add_task("Fetching PDFs...", total=len(all_docs))
                     for doc_name in all_docs:
-                        progress.update(task_id, description=f"Fetching {doc_name[:30]}...")
+                        progress.update(
+                            task_id, description=f"Fetching {doc_name[:30]}..."
+                        )
                         try:
                             adapter.fetch_document(doc_name, pdfs_dir)
                         except Exception as exc:
                             logger.warning("Failed to fetch doc {}: {}", doc_name, exc)
                         progress.advance(task_id)
 
-                console.print(f"[bold green]✓ PDF documents ready in {pdfs_dir}[/bold green]")
+                console.print(
+                    f"[bold green]✓ PDF documents ready in {pdfs_dir}[/bold green]"
+                )
 
 
 __all__ = ["BenchCommands"]
 
 
 __all__ = ["BenchCommands"]
-

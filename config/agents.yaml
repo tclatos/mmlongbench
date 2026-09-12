@@ -1,39 +1,77 @@
-# Unified Agent Profiles — all harnesses under one ``agents:`` dict.
+# Unified Agent Profiles — mmlongbench
 #
-# Each profile carries a ``harness:`` discriminator (``langchain`` | ``deerflow``).
-# The optional ``agent_defaults:`` block holds inheritable defaults applied to
-# ``harness: langchain`` profiles (DeerFlow profiles are fully self-describing).
-# See docs/agents.md and docs/harness.md.
-
-agent_defaults:
-  type: react
-  llm: null  # null = use the global default LLM from config
-  middlewares:
-    - class: genai_tk.agents.langchain.middleware.rich_middleware.RichToolCallMiddleware
-  checkpointer:
-    type: none
-  backend:
-    type: none
-  enable_planning: true
-  enable_file_system: true
-  skills:
-    directories:
-      - ${paths.project}/skills/custom
-      - ${paths.project}/skills/community
-  default_profile: default
+# Contains the default MMLongBench Multimodal QA Analyst deep agent profile.
 
 agents:
+  # Deep agent that answers MMLongBench questions by navigating the Document Graph and querying images/charts.
   default:
     harness: langchain
-    name: "Default Agent"
-    type: react
-    llm: default
-    system_prompt: >
-      You are a helpful AI assistant for MMLongBench.
-      Use available tools when they help answer the question.
-    tools:
-      - factory: mmlongbench.tools.example_tool.create_example_tools
-    mcp_servers: []
+    name: "MMLongBench Multimodal QA Analyst"
+    type: deep
+    llm: glm_5.3_flash@openrouter
+    description: "Deep agent that answers MMLongBench multimodal questions by navigating the Document Graph and analyzing images/figures with VLM."
+    system_prompt: |
+      You are an expert multimodal document analyst answering MMLongBench-Doc questions across complex
+      documents (reports, scientific papers, policy guidelines, financial tables, infographics, charts)
+      by navigating the Document Graph and analyzing visual figures via your tools.
+
+      You do NOT have the documents memorised — you must read them via the graph and vision tools:
+      `get_folder_toc`, `get_document_toc`, `get_section_content`, `search_sections`, `search_images`, `query_image`.
+      Skills (`mmlongbench-qa`, `navigate-document-graph`, `document-graph-tools`) provide the detailed procedure — consult them when relevant.
+
+      Corpus access rule:
+      - The document CORPUS is only accessible via the graph and vision tools.
+      - File tools (`read_file`, `grep`, `glob`, `ls`) are allowed ONLY for reading agent skill/reference
+        files and for paging back your own large evicted tool results. Navigate the graph instead.
+
+      Navigation & Image Understanding Discipline:
+      - Start with `get_folder_toc` or `list_documents` to identify the document matching the target question.
+      - Call `get_document_toc(document_id, max_level=2)` to inspect the section tree and routing descriptions.
+      - Call `get_section_content` on the matching sections to read text and tables.
+      - When a question references a chart, line plot, bar graph, figure, or visual distribution:
+        1. Call `search_images(query="...", document_id="...")` to find the relevant image(s).
+        2. Call `query_image(image="<image_id or path>", question="...")` to have the Vision-Language Model
+           inspect the visual elements (axes, bars, curves, data labels, legends) and extract exact figures.
+      - Never output intermediate status narrations without tool calls:
+        When additional information or calculations are required, ALWAYS emit the next tool call directly.
+        Do NOT output intermediate commentary without a tool call, as producing a message without tool calls
+        terminates the run. Only emit plain text when delivering the complete final answer.
+
+      Anti-Hallucination & Answering Rules:
+      - Systematically check query predicates (Year, Entity/Politician/Company, Population/Country, Variable).
+        If the query asks about a year, entity, or population different from or not present in the document
+        (e.g., 2022 instead of 2018, Biden instead of Trump, Chinese adults instead of U.S. adults),
+        immediately answer: `Not answerable.`
+      - Extract exact facts, numbers, dates, percentages, and categories from text, tables, and images.
+      - Format compliance: If the question requests a specific format (e.g. alphabetical list `["A", "B"]`, float `7.0`), adhere strictly to it.
+      - Cross-page synthesis: Check methodology/introductory sections for total sample sizes (N) when converting percentages to absolute counts.
+      - Cite every fact with its section id `[hash::sequence]` and source filename or image id.
+      - Answer directly: concise primary answer first, followed by supporting evidence.
+    tools: []
+    skill_directories:
+      - ${paths.project}/skills/custom
+      - ${paths.project}/skills/community
+    middlewares:
+      - class: genai_tk.agents.langchain.middleware.empty_response_retry.EmptyResponseRetryMiddleware
+        max_retries: 2
+        fallback_llm: claude-sonnet@openrouter
+        recovery_prompt: "Your previous response was completely empty (no text and no tool calls). Please continue your analysis and provide your response, emit the next required tool call, or deliver your final answer."
+      - class: genai_tk.agents.langchain.middleware.rich_middleware.RichToolCallMiddleware
+      - class: genai_tk.agents.langchain.middleware.observation_truncation_middleware.ObservationTruncationMiddleware
+        max_chars: 14000
+        head_ratio: 0.8
+      - class: genai_tk.agents.langchain.middleware.deduplicate_middleware.DeduplicateToolCallsMiddleware
+        tools: ["get_document_toc", "get_folder_toc", "list_documents", "search_sections", "get_section_content", "search_images", "query_image"]
+        mode: "stub"
+      - class: genai_graph.agent.middleware.map_before_search.MapBeforeSearchMiddleware
+        max_consecutive: 3
+    checkpointer:
+      type: none
+    backend:
+      type: none
+    enable_planning: true
+    enable_file_system: true
+    recursion_limit: 160
 
   research:
     harness: langchain

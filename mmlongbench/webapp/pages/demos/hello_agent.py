@@ -37,7 +37,9 @@ def calculator(expression: str) -> str:
 
 # ── Session state ───────────────────────────────────────────────────────
 if "hello_messages" not in sss:
-    sss.hello_messages = [AIMessage(content="Hello! I can answer questions and do math. Try me!")]
+    sss.hello_messages = [
+        AIMessage(content="Hello! I can answer questions and do math. Try me!")
+    ]
 
 # ── Display chat history ────────────────────────────────────────────────
 for msg in sss.hello_messages:

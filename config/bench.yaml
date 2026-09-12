@@ -21,12 +21,12 @@ graph_db:
 
 bench_profiles:
   mistral_glm:
-    description: "GLM 5.2 agent with Mistral OCR and DeepSeek V4 Pro judge"
+    description: "GLM 5.3 Flash agent with Mistral OCR and DeepSeek V4 Pro judge"
     markdownize_profile: best
     monitoring: null
 
     llms:
-      agent: glm_5.2@openrouter
+      agent: glm_5.3_flash@openrouter
       build: deepseek-v4-flash-0731@openrouter
       judge: DeepSeek-V4-Pro-0813@openrouter
 

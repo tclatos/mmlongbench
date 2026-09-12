@@ -92,7 +92,9 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
 
     name: str = "mmlongbench"
 
-    def load_dataset(self, split: str | None = None, cache_dir: Path | None = None) -> list[BenchQuestion]:
+    def load_dataset(
+        self, split: str | None = None, cache_dir: Path | None = None
+    ) -> list[BenchQuestion]:
         """Load MMLongBench questions and convert to standard BenchQuestion items.
 
         Supports loading from local JSONL cache or downloading directly from Hugging Face Hub.
@@ -114,8 +116,15 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
                     if not line.strip():
                         continue
                     item = json.loads(line)
-                    q_id = str(item.get("id") or item.get("question_id") or f"docqa_{idx:04d}")
-                    raw_doc = str(item.get("doc_name") or item.get("doc_id") or item.get("file_name") or "unknown")
+                    q_id = str(
+                        item.get("id") or item.get("question_id") or f"docqa_{idx:04d}"
+                    )
+                    raw_doc = str(
+                        item.get("doc_name")
+                        or item.get("doc_id")
+                        or item.get("file_name")
+                        or "unknown"
+                    )
                     doc_stem = self.resolve_doc_name(raw_doc)
                     questions.append(
                         BenchQuestion(
@@ -123,8 +132,12 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
                             doc_name=doc_stem,
                             doc_names=[doc_stem],
                             question=str(item.get("question", "")),
-                            gold_answer=str(item.get("answer") or item.get("gold_answer", "")),
-                            evidence=_parse_list_field(item.get("evidence") or item.get("evidence_pages")),
+                            gold_answer=str(
+                                item.get("answer") or item.get("gold_answer", "")
+                            ),
+                            evidence=_parse_list_field(
+                                item.get("evidence") or item.get("evidence_pages")
+                            ),
                             justification=_clean_val(item.get("justification")),
                             metadata=item,
                         )
@@ -136,7 +149,9 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
             logger.info("Loading questions from cached parquet: {}", parquet_cache)
             df = pd.read_parquet(parquet_cache)
         else:
-            logger.info("Fetching MMLongBench-Doc dataset from Hugging Face ({})", HF_DATASET_ID)
+            logger.info(
+                "Fetching MMLongBench-Doc dataset from Hugging Face ({})", HF_DATASET_ID
+            )
             hf_path = download_hf_file(
                 repo_id=HF_DATASET_ID,
                 filename="data/train-00000-of-00001.parquet",
@@ -144,7 +159,9 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
             )
             df = pd.read_parquet(hf_path)
             df.to_parquet(parquet_cache, index=False)
-            logger.info("Saved {} questions to parquet cache {}", len(df), parquet_cache)
+            logger.info(
+                "Saved {} questions to parquet cache {}", len(df), parquet_cache
+            )
 
         # 3. Parse DataFrame into BenchQuestion objects and save questions.jsonl
         questions = []
@@ -183,7 +200,11 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
                 questions.append(bq)
                 fh.write(bq.model_dump_json() + "\n")
 
-        logger.info("Initialized {} MMLongBench-Doc questions in {}", len(questions), questions_jsonl)
+        logger.info(
+            "Initialized {} MMLongBench-Doc questions in {}",
+            len(questions),
+            questions_jsonl,
+        )
         return questions
 
     def fetch_document(self, doc_name: str, output_dir: Path) -> Path:
@@ -198,7 +219,9 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
 
         # 1. Download pre-built PDF directly from yubo2333/MMLongBench-Doc
         try:
-            logger.info("Downloading PDF for {} from {}/documents", norm_name, HF_DATASET_ID)
+            logger.info(
+                "Downloading PDF for {} from {}/documents", norm_name, HF_DATASET_ID
+            )
             downloaded = download_hf_file(
                 repo_id=HF_DATASET_ID,
                 filename=f"documents/{norm_name}.pdf",
@@ -208,10 +231,17 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
             if downloaded.exists() and downloaded.stat().st_size > 0:
                 return downloaded
         except Exception as exc:
-            logger.warning("Could not download PDF from {} for {}: {}", HF_DATASET_ID, norm_name, exc)
+            logger.warning(
+                "Could not download PDF from {} for {}: {}",
+                HF_DATASET_ID,
+                norm_name,
+                exc,
+            )
 
         # 2. Fallback placeholder
-        logger.warning("Document {} could not be fetched. Creating placeholder.", norm_name)
+        logger.warning(
+            "Document {} could not be fetched. Creating placeholder.", norm_name
+        )
         target.write_text(f"Placeholder for {norm_name}", encoding="utf-8")
         return target
 
@@ -223,4 +253,3 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
 MMLongBenchDocAdapter = MMLongBenchAdapter
 DefaultBenchmarkAdapter = MMLongBenchAdapter
 DefaultBenchmarkAdapter = MMLongBenchAdapter
-

@@ -37,9 +37,13 @@ Based on the [MMLongBench-Doc](https://github.com/mayubo2333/MMLongBench-Doc) be
    - **Action Rule**: Look for sample sizes, definitions, and overall totals in the introduction/methodology sections when calculating absolute counts from percentages.
 
 4. **Exact Format Compliance**:
-   - **Alphabetical List**: When asked for a list in alphabetical order (e.g. `["A", "B"]`), sort the items alphabetically.
-   - **Float Format**: When asked for float format (e.g. `7.0`), format the numeric answer as a float.
-   - **List Format**: When asked for e.g. `["3", "2"]` or list of values, output the values in the requested list structure.
+   - **List Responses (`["item1", "item2"]`)**:
+     * When asked for a list of items or entities (e.g. `["Apple", "Banana"]` or a list in alphabetical order), output a clean JSON-formatted list `["A", "B"]` with string elements sorted in strict ascending alphabetical order.
+     * Use standardized string names (matching the document terminology) and strip extraneous trailing commentary or markdown bullet lists.
+   - **Float / Numerical Format**:
+     * When asked for float format (e.g. `7.0`, `18.5`), format the numeric answer cleanly as a float.
+   - **Direct Output Structure**:
+     * For structured list / numeric questions, provide the exact formatted value prominently at the start of your final answer.
 
 ---
 

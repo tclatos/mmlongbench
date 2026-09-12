@@ -71,13 +71,52 @@ The test evaluated key scientific dimensions of long-document multimodal compreh
 
 ---
 
-## 4. Key Recommendations for Full-Scale Benchmark Run
+## 4. Architectural Improvements Implemented Post-Evaluation
 
-1. **Visual Cross-Validation Rule for Diverging Tables**:
-   - Add a heuristic in the `mmlongbench-qa` skill prompting the agent to call `query_image` when survey tables contain ambiguous multi-level headers or diverging stacked bar formats.
-2. **Multimodal Embeddings Integration**:
-   - Enable multimodal embeddings (e.g. `amazon.nova-2-multimodal-embeddings-v1` via EdenAI) to allow direct semantic similarity search over image embeddings alongside text chunk embeddings.
-3. **Structured Format Guardrails**:
-   - Standardize post-processing or prompt formatting for questions requesting strict list outputs (`["A", "B"]`) to ensure exact alphabetical sorting and string cleanliness.
-4. **Batch Execution & Concurrency Tuning**:
-   - The full 135-document / 1,091-question benchmark can be scheduled with Prefect workers (`concurrency=10` or higher) with cached outlines and DB artifacts.
+Following the evaluation findings, four core architectural upgrades were implemented across the toolkit:
+
+### 1. Structured HTML Table Extraction & Graph `Table` Nodes
+- **`table_format="html"` in Mistral OCR**: Configured the Mistral OCR converter to output tables as structured HTML (`<table>...</table>`), eliminating markdown pipe-table column misalignment for multi-level headers and diverging bars.
+- **`MarkdownTable` Node & `HAS_TABLE` Relation**: Ingested tables as first-class nodes in Ladybug DB with `table_format`, `content`, `caption`, and `token_count`.
+- **`search_tables` Tool**: Added dedicated search capability over table content and captions, allowing the agent to locate and inspect tabular structures with precision.
+- **Smart Summarizer Truncation**: Extended section text truncation to parse HTML table elements, retaining headers and representative sample rows while trimming excess data rows to preserve LLM summarization budget.
+
+### 2. Multimodal Embeddings & Image Vector Search
+- **EdenAI Multimodal Model**: Registered `nova_multimodal` (`amazon/amazon.nova-2-multimodal-embeddings-v1` via EdenAI, 1024 dimensions).
+- **HNSW Vector Indexing on Images**: Added `image_embedding_index` on `Image.image_embedding` in Ladybug DB, populated during parallel ingest.
+- **Semantic Image Search**: Enhanced `search_images()` to perform dense vector similarity search over image captions and visual metadata alongside keyword matching.
+
+### 3. CLI Introspection Commands
+- Added `cli docgraph tables` to inspect extracted tables, formats, and token counts.
+- Added `cli docgraph images` to inspect image captions and document associations.
+
+### 4. Structured Format & Anti-Hallucination Guardrails
+- Enhanced `mmlongbench-qa` skill and agent system prompts with strict JSON list formatting (`["A", "B"]` in ascending alphabetical order) and explicit predicate validation rules.
+
+---
+
+## 5. Roadmap & Proposals for Full-Scale Benchmark Execution (135 Docs / 1,091 Questions)
+
+To scale from the 2-document validation run to the complete **MMLongBench-Doc** dataset (135 documents, 1,091 questions), the following strategy is proposed:
+
+### A. Two-Phase Ingestion & Indexing Pipeline
+1. **Phase 1 — Batch OCR & Markdown Extraction**:
+   - Run `MistralOCRConverter` with `use_batch_api: true`, `include_image_base64: true`, and `table_format: html`.
+   - Mistral Batch API handles large multi-page PDFs asynchronously at 50% cost reduction with high throughput.
+2. **Phase 2 — Document Graph & Embedding Ingestion**:
+   - Ingest all 135 Markdown documents into `mmlongbench_multi.db`.
+   - Build HNSW vector indexes over chunks (`chunk_embedding_index`) and images (`image_embedding_index`), plus BM25 FTS index (`section_fts`).
+
+### B. Scalable Execution & Concurrency Architecture
+- **Prefect Orchestration with Batch Workers**:
+  - Run the benchmark pipeline with Prefect work queues at `concurrency=8` to `concurrency=12`.
+  - Checkpointer and cache invalidation via `force_stage` ensure resilient resumption if rate limits or network glitches occur.
+- **Model Routing & Cost Optimization**:
+  - **Agent LLM**: `glm_5.3_flash@openrouter` or `deepseek_v4flash@openrouter` provides the optimal balance of reasoning speed, cost ($< \$0.10$ per 1M tokens), and multi-turn tool calling reliability.
+  - **Judge LLM**: `DeepSeek-V4-Pro-0813@openrouter` or `gpt41mini@openrouter` for strict evaluation against gold answers and rubrics.
+
+### C. Performance & Accuracy Targets
+- **Target Accuracy**: $\ge 85\%$ across all 1,091 questions.
+- **Unanswerable Precision Target**: $\ge 95\%$ on the ~245 unanswerable questions.
+- **Estimated Full Run Duration**: ~45–60 minutes with 10 concurrent workers.
+- **Estimated API Cost**: ~\$12–\$18 total for full OCR, embedding, agent inference, and judge evaluation.

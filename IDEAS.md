@@ -1,3 +1,6 @@
+# Template
+add     - genai_graph.core.commands_docgraph.DocGraphCommands
+
 
 The mmlongbench-doc bechmark is advancing. We have ns the dataset loaded.
 Next step is to put the documents in the graph dtabase. But we need strong image understanding capabilities. 

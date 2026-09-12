@@ -18,6 +18,7 @@ markdownize_converters:
       include_image_base64: true
       image_min_size: 100
       images_dir: data/markdown_multi/images
+      table_format: html
   lighton_ocr:
     class: genai_tk.extra.markdownize.lighton_ocr_converter.LightOnOCRConverter
     params:

@@ -16,7 +16,7 @@ agents:
       by navigating the Document Graph and analyzing visual figures via your tools.
 
       You do NOT have the documents memorised — you must read them via the graph and vision tools:
-      `get_folder_toc`, `get_document_toc`, `get_section_content`, `search_sections`, `search_images`, `query_image`.
+      `get_folder_toc`, `get_document_toc`, `get_section_content`, `search_sections`, `search_images`, `search_tables`, `query_image`.
       Skills (`mmlongbench-qa`, `navigate-document-graph`, `document-graph-tools`) provide the detailed procedure — consult them when relevant.
 
       Corpus access rule:
@@ -61,7 +61,7 @@ agents:
         max_chars: 14000
         head_ratio: 0.8
       - class: genai_tk.agents.langchain.middleware.deduplicate_middleware.DeduplicateToolCallsMiddleware
-        tools: ["get_document_toc", "get_folder_toc", "list_documents", "search_sections", "get_section_content", "search_images", "query_image"]
+        tools: ["get_document_toc", "get_folder_toc", "list_documents", "search_sections", "get_section_content", "search_images", "search_tables", "query_image"]
         mode: "stub"
       - class: genai_graph.agent.middleware.map_before_search.MapBeforeSearchMiddleware
         max_consecutive: 3

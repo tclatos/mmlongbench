@@ -17,11 +17,15 @@ from typing import Any
 from genai_graph.bench.adapters.base import (
     BaseBenchmarkAdapter,
     download_hf_file,
+    download_http_file,
 )
 from genai_graph.bench.models import BenchQuestion
 from loguru import logger
 
 HF_DATASET_ID = "yubo2333/MMLongBench-Doc"
+# Authoritative mirror of the document PDFs (the Hub copy of some documents
+# serves bytes that do not match the repo's recorded LFS OIDs).
+GITHUB_DOCUMENTS_URL = "https://raw.githubusercontent.com/mayubo2333/MMLongBench-Doc/main/data/documents"
 
 MMLONGBENCH_DOC_JUDGE_RUBRIC = """\
 You are a strict-but-fair grader for MMLongBench-Doc, a benchmark evaluating multi-modal comprehension of very long documents (PDF reports, financial disclosures, academic papers, administrative guidelines, and technical publications).
@@ -212,10 +216,14 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
         output_dir.mkdir(parents=True, exist_ok=True)
         norm_name = self.resolve_doc_name(doc_name)
         target = output_dir / f"{norm_name}.pdf"
+        sub_target = output_dir / "documents" / f"{norm_name}.pdf"
 
-        if target.exists() and target.stat().st_size > 0:
+        if target.exists() and target.stat().st_size > 1000:
             logger.debug("PDF already present: {}", target)
             return target
+        if sub_target.exists() and sub_target.stat().st_size > 1000:
+            logger.debug("PDF already present in documents/: {}", sub_target)
+            return sub_target
 
         # 1. Download pre-built PDF directly from yubo2333/MMLongBench-Doc
         try:
@@ -228,7 +236,7 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
                 repo_type="dataset",
                 output_dir=output_dir,
             )
-            if downloaded.exists() and downloaded.stat().st_size > 0:
+            if downloaded.exists() and downloaded.stat().st_size > 1000:
                 return downloaded
         except Exception as exc:
             logger.warning(
@@ -238,12 +246,22 @@ class MMLongBenchAdapter(BaseBenchmarkAdapter):
                 exc,
             )
 
-        # 2. Fallback placeholder
-        logger.warning(
-            "Document {} could not be fetched. Creating placeholder.", norm_name
+        # 2. Fall back to the benchmark authors' GitHub mirror of the documents.
+        try:
+            github_url = f"{GITHUB_DOCUMENTS_URL}/{norm_name}.pdf"
+            logger.info("Downloading PDF for {} from {}", norm_name, github_url)
+            part_path = sub_target.with_name(sub_target.name + ".part")
+            download_http_file(url=github_url, output_path=part_path)
+            if part_path.read_bytes()[:5] != b"%PDF-":
+                raise ValueError(f"Downloaded {github_url} is not a valid PDF.")
+            part_path.replace(sub_target)
+            return sub_target
+        except Exception as exc:
+            logger.warning("Could not download PDF from GitHub for {}: {}", norm_name, exc)
+
+        raise FileNotFoundError(
+            f"Document {norm_name} could not be fetched from {HF_DATASET_ID}."
         )
-        target.write_text(f"Placeholder for {norm_name}", encoding="utf-8")
-        return target
 
     def get_judge_rubric(self) -> str:
         return MMLONGBENCH_DOC_JUDGE_RUBRIC

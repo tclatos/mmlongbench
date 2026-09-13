@@ -44,8 +44,11 @@ bench_profiles:
       chunk_size_tokens: 1500
 
     files:
+      # TEMPORARY smoke-test subset (3 docs, 26 questions) — revert to "*" for the full 135-doc run.
       pathspecs:
-        - "*"
+        - mi_phone
+        - STEPBACK
+        - RAR
       limit: null
 
     agent:

@@ -30,6 +30,7 @@ data/kv_store/
 data/mmlongbench/*/runs.jsonl
 data/mmlongbench/*/scores.jsonl
 data/mmlongbench/*/scores_summary.json
+data/mmlongbench/**/*.bak
 data/traces/
 data/trajectories/
 data/mmlb_image/

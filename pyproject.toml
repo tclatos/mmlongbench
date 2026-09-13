@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-genai-tk = { git = "https://github.com/tclatos/genai-tk", rev = "main" }
+genai-tk = { path = "../genai-tk", editable = true }
 genai-graph = { path = "../genai-graph", editable = true }
 
 [tool.uv]

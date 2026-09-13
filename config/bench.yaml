@@ -39,7 +39,7 @@ bench_profiles:
       workers: 8
       summary_min_tokens: 800
       context_safety_ratio: 0.9
-      embeddings: nova_multimodal@edenai
+      embeddings: qwen3_06b@deepinfra
       fts: true
       chunk_size_tokens: 1500
 

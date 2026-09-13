@@ -65,21 +65,47 @@ The test evaluated key scientific dimensions of long-document multimodal compreh
    - In `docqa_0207`, the agent combined the 36% "poor" rating from Section 13 / Image `1fe49a31` with the sample size $N = 1,503$ from Section 25 (Methodology) to compute $1503 \times 0.36 = 541$.
 
 ### Root Cause Analysis of the Single Error (`docqa_0209`):
-- **Issue**: For `docqa_0209`, the question asked for the domains with the highest "Very confident" and "Not at all confident" ratings.
-- **Root Cause**: The Mistral OCR markdown table representation in Section 7 contained misaligned column headers for diverging bar charts (combining left-total and right-total percentages into the header row). As a result, the right-total 54% for trade agreements was read as the "Very confident" column instead of the sub-column value.
-- **Lesson**: When reading complex multi-column survey tables with diverging bars, the agent should cross-validate ambiguous column headers by querying the corresponding figure image using `query_image`.
+
+- **Target Question**:
+  > *"According to the survey on April 25 - May 1, 2018, what are the domains with the highest percentage that adults are very confident and not at all confident of Donald Trump's government? Please write the answer in the list format and with alphabetical order, e.g., `[\"A\",\"B\"]`"*
+- **Gold Answer**:
+  `['Make good decisions about economic policy ', 'Make wise decisions about immigration policy ']`
+- **Agent Output**:
+  `['Make wise decisions about immigration policy', 'Negotiate favorable trade agreements with other countries']`
+- **Judge Decision**:
+  `Incorrect` (*retrieval_or_lookup_error*) — The agent correctly identified immigration policy (highest "Not at all confident" at 42%), but mistakenly selected trade agreements instead of economic policy for highest "Very confident" (economic policy had 29% "Very confident", while trade agreements had 24% "Very confident" but 54% net/combined confident).
+
+#### Detailed Forensic Analysis:
+1. **Markdown Pipe-Table Column Misalignment**:
+   In the original document (`05-03-18-political-release.pdf` Section 7 / Page 5), the source chart is a multi-column horizontal diverging bar table displaying 4 levels of sentiment:
+   `[Very confident | Somewhat confident | Not too confident | Not at all confident]` alongside summary totals `[Net Confident | Net Not Confident]`.
+   When parsed into standard Markdown pipe tables, the nested column headers flattened into a single header row. The agent read the net total figure (54% for trade agreements) as the top "Very confident" column value rather than the specific 24% sub-column value.
+2. **Image Query Target Mismatch**:
+   The agent attempted to verify confidence metrics visually, but searched for `"confident Donald Trump policy areas"` and selected image `5003296905fd4fd5::8::cce29bed` (Section 8). This image was the *4-panel small-multiple line chart tracking net confidence over time (2017–2018)*, which lacked the 4-level breakdown bars present in Section 7.
+3. **Absence of Dedicated Tabular Search**:
+   Without a dedicated table inspection tool, the agent had to rely on whole-section markdown text parsing where extensive tabular rows had column delimiter shifts.
+
+#### How the Implemented Changes Prevent This Error:
+1. **HTML Table Representation (`table_format: html`)**:
+   HTML tables strictly preserve `<th>` headers with `colspan`/`rowspan` attributes, preventing column merging and ensuring that "Very confident" ($29\%$ economics vs $24\%$ trade) remains in a distinct `<td>` column from "Net Confident" ($54\%$).
+2. **Dedicated Table Navigation (`search_tables`)**:
+   The agent can now call `search_tables(query="confidence policy areas")` to pull the isolated, structured table without surrounding prose ambiguity.
+3. **Dense Multimodal Image Vector Search**:
+   With `image_embedding_index`, querying `search_images(query="Trump confidence policy breakdown")` performs vector cosine similarity matching, directly surfacing Section 7's breakdown bar chart rather than Section 8's temporal trend lines.
+4. **Agent Skill Refinement**:
+   The `mmlongbench-qa` skill explicitly instructs the agent to verify whether a query targets a specific sub-category (e.g. "Very confident") versus a combined total ("Net confident / very or somewhat confident").
 
 ---
 
 ## 4. Architectural Improvements Implemented Post-Evaluation
 
-Following the evaluation findings, four core architectural upgrades were implemented across the toolkit:
+Following the evaluation findings, five core architectural upgrades were implemented and verified across the workspace:
 
 ### 1. Structured HTML Table Extraction & Graph `Table` Nodes
 - **`table_format="html"` in Mistral OCR**: Configured the Mistral OCR converter to output tables as structured HTML (`<table>...</table>`), eliminating markdown pipe-table column misalignment for multi-level headers and diverging bars.
 - **`MarkdownTable` Node & `HAS_TABLE` Relation**: Ingested tables as first-class nodes in Ladybug DB with `table_format`, `content`, `caption`, and `token_count`.
 - **`search_tables` Tool**: Added dedicated search capability over table content and captions, allowing the agent to locate and inspect tabular structures with precision.
-- **Smart Summarizer Truncation**: Extended section text truncation to parse HTML table elements, retaining headers and representative sample rows while trimming excess data rows to preserve LLM summarization budget.
+- **Smart Summarizer Truncation**: Extended section text truncation in `summarize.py` to parse HTML table elements, retaining headers and representative sample rows while trimming excess data rows to preserve LLM summarization budget.
 
 ### 2. Multimodal Embeddings & Image Vector Search
 - **EdenAI Multimodal Model**: Registered `nova_multimodal` (`amazon/amazon.nova-2-multimodal-embeddings-v1` via EdenAI, 1024 dimensions).
@@ -87,17 +113,24 @@ Following the evaluation findings, four core architectural upgrades were impleme
 - **Semantic Image Search**: Enhanced `search_images()` to perform dense vector similarity search over image captions and visual metadata alongside keyword matching.
 
 ### 3. CLI Introspection Commands
-- Added `cli docgraph tables` to inspect extracted tables, formats, and token counts.
+- Added `cli docgraph tables` to inspect extracted tables, formats, and token counts directly from the terminal.
 - Added `cli docgraph images` to inspect image captions and document associations.
 
 ### 4. Structured Format & Anti-Hallucination Guardrails
 - Enhanced `mmlongbench-qa` skill and agent system prompts with strict JSON list formatting (`["A", "B"]` in ascending alphabetical order) and explicit predicate validation rules.
 
+### 5. Prefect Concurrency & Batch Configuration
+- Updated [config/bench.yaml](config/bench.yaml) with tuned worker concurrency across all stages:
+  * **`build.workers: 8–10`** for parallel LLM outline generation and dense embedding computation.
+  * **`agent.concurrency: 12`** for parallel agent question execution under Prefect.
+  * **`judge.concurrency: 8`** for high-throughput LLM-as-a-judge scoring.
+  * Added dedicated `mistral_batch_full` profile for full-dataset benchmark execution.
+
 ---
 
-## 5. Roadmap & Proposals for Full-Scale Benchmark Execution (135 Docs / 1,091 Questions)
+## 5. Roadmap & Execution Plan for Full-Scale Benchmark Run (135 Docs / 1,091 Questions)
 
-To scale from the 2-document validation run to the complete **MMLongBench-Doc** dataset (135 documents, 1,091 questions), the following strategy is proposed:
+To scale from the 2-document validation run to the complete **MMLongBench-Doc** dataset (135 documents, 1,091 questions), the following strategy is configured:
 
 ### A. Two-Phase Ingestion & Indexing Pipeline
 1. **Phase 1 — Batch OCR & Markdown Extraction**:
@@ -109,14 +142,14 @@ To scale from the 2-document validation run to the complete **MMLongBench-Doc** 
 
 ### B. Scalable Execution & Concurrency Architecture
 - **Prefect Orchestration with Batch Workers**:
-  - Run the benchmark pipeline with Prefect work queues at `concurrency=8` to `concurrency=12`.
+  - Run the benchmark pipeline with Prefect work queues at `concurrency=12`.
   - Checkpointer and cache invalidation via `force_stage` ensure resilient resumption if rate limits or network glitches occur.
 - **Model Routing & Cost Optimization**:
-  - **Agent LLM**: `glm_5.3_flash@openrouter` or `deepseek_v4flash@openrouter` provides the optimal balance of reasoning speed, cost ($< \$0.10$ per 1M tokens), and multi-turn tool calling reliability.
-  - **Judge LLM**: `DeepSeek-V4-Pro-0813@openrouter` or `gpt41mini@openrouter` for strict evaluation against gold answers and rubrics.
+  - **Agent LLM**: `glm_5.3_flash@openrouter` provides the optimal balance of reasoning speed, cost ($< \$0.10$ per 1M tokens), and multi-turn tool calling reliability.
+  - **Judge LLM**: `DeepSeek-V4-Pro-0813@openrouter` for strict evaluation against gold answers and rubrics.
 
 ### C. Performance & Accuracy Targets
-- **Target Accuracy**: $\ge 85\%$ across all 1,091 questions.
-- **Unanswerable Precision Target**: $\ge 95\%$ on the ~245 unanswerable questions.
-- **Estimated Full Run Duration**: ~45–60 minutes with 10 concurrent workers.
+- **Target Accuracy**: $\ge 90\%$ across all 1,091 questions (leveraging HTML tables and multimodal image vector search).
+- **Unanswerable Precision Target**: $\ge 98\%$ on the ~245 unanswerable questions.
+- **Estimated Full Run Duration**: ~45–60 minutes with 12 concurrent workers.
 - **Estimated API Cost**: ~\$12–\$18 total for full OCR, embedding, agent inference, and judge evaluation.

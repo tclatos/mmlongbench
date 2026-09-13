@@ -21,7 +21,7 @@ graph_db:
 
 bench_profiles:
   mistral_glm:
-    description: "GLM 5.3 Flash agent with Mistral OCR and DeepSeek V4 Pro judge"
+    description: "GLM 5.3 Flash agent with Mistral OCR (HTML tables), nova multimodal embeddings, and DeepSeek V4 Pro judge"
     markdownize_profile: best
     monitoring: null
 
@@ -36,10 +36,10 @@ bench_profiles:
       llm: deepseek-v4-flash-0731@openrouter
       structure_strategy: auto
       summaries: true
-      workers: 4
+      workers: 8
       summary_min_tokens: 800
       context_safety_ratio: 0.9
-      embeddings: qwen3_06b@deepinfra
+      embeddings: nova_multimodal@edenai
       fts: true
       chunk_size_tokens: 1500
 
@@ -51,11 +51,48 @@ bench_profiles:
     agent:
       profile: default
       folder_id: null
-      concurrency: 10
+      concurrency: 12
 
     judge:
       enabled: true
-      concurrency: 5
+      concurrency: 8
+
+  mistral_batch_full:
+    description: "Full 135-doc / 1091-question benchmark profile with max Prefect concurrency"
+    markdownize_profile: best
+    monitoring: null
+
+    llms:
+      agent: glm_5.3_flash@openrouter
+      build: deepseek-v4-flash-0731@openrouter
+      judge: DeepSeek-V4-Pro-0813@openrouter
+
+    build:
+      skip_ocr: false
+      force: false
+      llm: deepseek-v4-flash-0731@openrouter
+      structure_strategy: auto
+      summaries: true
+      workers: 10
+      summary_min_tokens: 800
+      context_safety_ratio: 0.9
+      embeddings: nova_multimodal@edenai
+      fts: true
+      chunk_size_tokens: 1500
+
+    files:
+      pathspecs:
+        - "*"
+      limit: null
+
+    agent:
+      profile: default
+      folder_id: null
+      concurrency: 12
+
+    judge:
+      enabled: true
+      concurrency: 8
 
   flash_agent:
     description: "Fast Flash agent and judge for quick verification"

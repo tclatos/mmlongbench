@@ -25,10 +25,11 @@ Based on the [MMLongBench-Doc](https://github.com/mayubo2333/MMLongBench-Doc) be
    - **Action Rule**: If ANY key predicate (year, entity, population, or variable) is not supported by the document, immediately state: `Not answerable.` Do not extrapolate or substitute a different year/entity.
 
 2. **Visual Charts, Plots & Infographics Understanding**:
-   - Many questions require reading exact numerical values, bar heights, line endpoints, time series trajectories, or categories from visual figures that are NOT fully transcribed into Markdown text tables.
+   - Many questions refer to visual figures, charts, and diagrams. Uncaptioned images ($>10\text{ KB}$) have VLM descriptions and extracted keywords embedded in the section markdown.
    - **Action Rule**: When a question refers to a chart, line plot, figure, or visual distribution:
-     * Call `search_images(query="<chart topic or figure label>", document_id="<id>")` to locate the image.
-     * Call `query_image(image="<image_id or path>", question="<specific visual query>")` to read the chart via the VLM.
+     * First inspect section text and keywords with `get_document_toc` and `get_section_content`.
+     * If visual verification of exact data points/axes is needed, call `query_image(image="<image path or filename from section markdown>", question="<specific visual query>")` to inspect the image via VLM.
+     * Respect the call budget (max 3 `query_image` calls per task).
 
 3. **Cross-Page Reasoning (~33.0% of questions)**:
    - Frequently requires combining information across non-adjacent pages:
@@ -54,8 +55,9 @@ Based on the [MMLongBench-Doc](https://github.com/mayubo2333/MMLongBench-Doc) be
 2. **Inspect Outline with `get_document_toc(document_id=<id>, max_level=2)`**:
    - Examine the section hierarchy, page spans, and routing descriptions.
    - Identify the relevant sections and figures before reading raw text.
-3. **Inspect Visual Figures with `search_images` and `query_image`**:
-   - For chart, line plot, diagram, or graphical questions, find the image and query it with the VLM.
+3. **Inspect Visual Figures with `query_image`**:
+   - When a chart, line plot, or diagram requires visual confirmation, use the image path from `<!-- Image: ... -->` in the section markdown to call `query_image`.
+   - Remember the hard budget limit: max 3 calls per task.
 4. **Read Section Content with `get_section_content(section_ids="<id>", start_line=..., max_lines=...)`**:
    - Read tables, text paragraphs, and footnotes.
    - Use pagination (`start_line`, `max_lines`) for extensive tables.
@@ -66,7 +68,8 @@ Based on the [MMLongBench-Doc](https://github.com/mayubo2333/MMLongBench-Doc) be
    - Do NOT emit intermediate conversational status messages without tool calls.
    - Emit plain text only when delivering your final answer.
 7. **Tool Safety**:
-   - `query_image` accepts ONLY image files or the `image_id` / `path` values returned by `search_images` — NEVER a PDF or other document file.
+   - `query_image` accepts ONLY image files or image paths referenced in section markdown — NEVER a PDF or other document file.
+   - TOC-first navigation is primary. Blind `grep` is forbidden.
    - Answer ONLY from the Document Graph tools. Never read, grep, or list benchmark ground-truth files
      (`questions.jsonl`, `runs.jsonl`, `scores.jsonl`, parquet data) — doing so invalidates the evaluation.
 

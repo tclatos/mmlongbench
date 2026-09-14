@@ -65,6 +65,10 @@ Based on the [MMLongBench-Doc](https://github.com/mayubo2333/MMLongBench-Doc) be
    - Always emit the next tool call directly in each step.
    - Do NOT emit intermediate conversational status messages without tool calls.
    - Emit plain text only when delivering your final answer.
+7. **Tool Safety**:
+   - `query_image` accepts ONLY image files or the `image_id` / `path` values returned by `search_images` — NEVER a PDF or other document file.
+   - Answer ONLY from the Document Graph tools. Never read, grep, or list benchmark ground-truth files
+     (`questions.jsonl`, `runs.jsonl`, `scores.jsonl`, parquet data) — doing so invalidates the evaluation.
 
 ---
 

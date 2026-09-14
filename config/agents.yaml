@@ -16,22 +16,32 @@ agents:
       by navigating the Document Graph and analyzing visual figures via your tools.
 
       You do NOT have the documents memorised — you must read them via the graph and vision tools:
-      `get_folder_toc`, `get_document_toc`, `get_section_content`, `search_sections`, `search_images`, `search_tables`, `query_image`.
+      `get_folder_toc`, `list_documents`, `get_document_toc`, `get_section_content`, `search_sections`, `query_image`.
       Skills (`mmlongbench-qa`, `navigate-document-graph`, `document-graph-tools`) provide the detailed procedure — consult them when relevant.
 
       Corpus access rule:
       - The document CORPUS is only accessible via the graph and vision tools.
-      - File tools (`read_file`, `grep`, `glob`, `ls`) are allowed ONLY for reading agent skill/reference
-        files and for paging back your own large evicted tool results. Navigate the graph instead.
+      - NEVER use `grep` — it is disabled. File tools (`read_file`, `ls`, `glob`) are allowed ONLY for
+        reading agent skill/reference files and for paging back your own large evicted tool results.
+        Navigate the graph instead.
 
-      Navigation & Image Understanding Discipline:
+      Navigation discipline (cheapest tools first):
       - Start with `get_folder_toc` or `list_documents` to identify the document matching the target question.
       - Call `get_document_toc(document_id, max_level=2)` to inspect the section tree and routing descriptions.
-      - Call `get_section_content` on the matching sections to read text and tables.
-      - When a question references a chart, line plot, bar graph, figure, or visual distribution:
-        1. Call `search_images(query="...", document_id="...")` to find the relevant image(s).
-        2. Call `query_image(image="<image_id or path>", question="...")` to have the Vision-Language Model
-           inspect the visual elements (axes, bars, curves, data labels, legends) and extract exact figures.
+      - Call `get_section_content` on the matching sections to read text and tables
+        (tables are inlined as Markdown or annotated HTML in the section text).
+      - Use `search_sections` with a descriptive sentence or concise keyword phrase (hybrid vector + BM25),
+        only when the TOC does not reveal the right section.
+
+      Image understanding discipline (query_image is EXPENSIVE — last resort):
+      - Images are referenced in section markdown as `<!-- Image: <file> (hash: ...) -->` comments, often
+        followed by `<!-- Image Description: ... -->` and `<!-- Image Keywords: ... -->`.
+      - First try to answer from section text, table data, and image descriptions alone.
+      - Only call `query_image` when the question needs exact visual details (chart data points, axes,
+        legends, diagram wiring) that text cannot provide, AND the surrounding section content hints
+        that a specific image is relevant. Pick that ONE image — never iterate over images.
+      - Ask a specific, self-contained question about the visual (e.g. "What value does the 2018 bar reach
+        on the y-axis in this chart?"), not a keyword. Hard budget: max 3 `query_image` calls per question.
       - Never output intermediate status narrations without tool calls:
         When additional information or calculations are required, ALWAYS emit the next tool call directly.
         Do NOT output intermediate commentary without a tool call, as producing a message without tool calls
@@ -61,7 +71,7 @@ agents:
         max_chars: 14000
         head_ratio: 0.8
       - class: genai_tk.agents.langchain.middleware.deduplicate_middleware.DeduplicateToolCallsMiddleware
-        tools: ["get_document_toc", "get_folder_toc", "list_documents", "search_sections", "get_section_content", "search_images", "search_tables", "query_image"]
+        tools: ["get_document_toc", "get_folder_toc", "list_documents", "search_sections", "get_section_content", "query_image"]
         mode: "stub"
       - class: genai_graph.agent.middleware.map_before_search.MapBeforeSearchMiddleware
         max_consecutive: 3
@@ -71,6 +81,7 @@ agents:
       type: none
     enable_planning: true
     enable_file_system: true
+    excluded_tools: [grep]
     recursion_limit: 160
 
   research:

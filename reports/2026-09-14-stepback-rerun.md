@@ -44,9 +44,26 @@ Tool mix (8 questions): `get_section_content` 20 · `search_sections` 15 · `que
 - Cosmetic: `RuntimeError: Event loop is closed` noise from httpx `aclose()` after the grade flow's loop closes; grading completes fine.
 - Process gotcha: `uv run cli bench run` silently reuses existing run records — delete/relocate matching records in `runs.jsonl` to force re-execution. And `uv run` may reinstall editable packages mid-session (observed once).
 
+## VLM A/B (second session): query_image/description VLM switched to Gemini 2.5 Flash
+
+Isolated A/B on the failing docqa_0455 chart (Figure 1, MMLU Physics group, gold 73.2%):
+
+| VLM | native image | 3× upscale |
+|---|---|---|
+| glm_5.3_flash | 71.2 ✗ (flaky: 71.8 in agent run) | 0.732 ✓ |
+| gemini-2.5-flash | 0.729 (closest) | 0.732 ✓ |
+| qwen3-vl-32b | 78.4 + scrambled bars ✗ | 73.2 ✓ (other bars confabulated) |
+
+Findings: **image resolution is the dominant failure mode** — all VLMs read correctly once the image is upscaled. Changes made:
+1. `genai_tk/extra/markdownize/image_describer.py`: new `upscale_small_image()` — 3× LANCZOS for JPEG/PNG below 2000 px, used by `describe_image_with_vlm`.
+2. `genai_graph/kg/query/document_graph_tools.py`: `execute_image_query` now upscales small images before the VLM call; default VLM → `gemini-2.5-flash@openrouter` (fallback `glm_5.3_flash@openrouter`).
+3. `MistralOCRConverter.vlm_model` default → `gemini-2.5-flash@openrouter`.
+
+Full-bench rerun with the new VLM: 62.5% (5/8, +1 partial) — within run-to-run noise, **not** an improvement over 75%. docqa_0455 remains incorrect (Gemini estimated 72.1/72.9/73.2 across three reads — the paper prose never states the value and the chart label is borderline-legible; gold comes from chart reading). docqa_0460 (pie counting) hit the recursion limit burning 2.88M tokens (88% of the run) by looping searches against the query_image budget. Verdict: keep Gemini (best-calibrated reader, never hallucinated wildly), treat visual-enumeration and unlabelled-chart questions as expected misses; possible future work is damping post-budget-rejection loops.
+
 ## Remaining risks
 
 1. Chart data-point reading accuracy (docqa_0455-type failures) — bounded by VLM vision quality; the ≤3 budget caps burn but can't fix misreads.
-2. Visual-enumeration questions (count figures) conflict with the 3-call budget — expect misses; acceptable for enterprise-doc usage.
+2. Visual-enumeration questions (count figures) conflict with the 3-call budget — expect misses; acceptable for enterprise-doc usage. Agents may also loop after budget rejection (docqa_0460 burned 2.88M tokens to recursion limit).
 3. Table pipeline unverified on a real table-heavy document.
 4. Markdown cache invalidation is manual: whenever the converter changes, cached `*.md` in `~/OneDrive/prj/bench/markdown/` must be deleted or the old conversion is reused silently.

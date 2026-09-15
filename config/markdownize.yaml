@@ -57,13 +57,12 @@ markdownize_profiles:
         converter: markitdown
 
   best:
+    # Bench conversion profile: EVERYTHING goes through Mistral OCR. On failure
+    # the conversion fails loudly (after retries) — no fallback converter, since
+    # degraded markitdown/anydoc output silently poisons the Document Graph.
     rules:
-      - pathspec: "**/*.{ppt,pptx,odp,doc,docx,odt,rtf,xlsx,xls,ods}"
-        converter: via_pdf
-      - pathspec: "**/*.pdf"
-        converter: mistral_ocr
       - pathspec: "**/*"
-        converter: markitdown
+        converter: mistral_ocr
 
   lighton:
     rules:

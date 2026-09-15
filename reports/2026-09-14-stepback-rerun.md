@@ -59,7 +59,15 @@ Findings: **image resolution is the dominant failure mode** — all VLMs read co
 2. `genai_graph/kg/query/document_graph_tools.py`: `execute_image_query` now upscales small images before the VLM call; default VLM → `gemini-2.5-flash@openrouter` (fallback `glm_5.3_flash@openrouter`).
 3. `MistralOCRConverter.vlm_model` default → `gemini-2.5-flash@openrouter`.
 
-Full-bench rerun with the new VLM: 62.5% (5/8, +1 partial) — within run-to-run noise, **not** an improvement over 75%. docqa_0455 remains incorrect (Gemini estimated 72.1/72.9/73.2 across three reads — the paper prose never states the value and the chart label is borderline-legible; gold comes from chart reading). docqa_0460 (pie counting) hit the recursion limit burning 2.88M tokens (88% of the run) by looping searches against the query_image budget. Verdict: keep Gemini (best-calibrated reader, never hallucinated wildly), treat visual-enumeration and unlabelled-chart questions as expected misses; possible future work is damping post-budget-rejection loops.
+Full-bench rerun with the new VLM: 62.5% (5/8, +1 partial) — within run-to-run noise, **not** an improvement over 75%. docqa_0455 remains incorrect (Gemini estimated 72.1/72.9/73.2 across three reads — the paper prose never states the value and the chart label is borderline-legible; gold comes from chart reading). docqa_0460 (pie counting) hit the recursion limit burning 2.88M tokens (88% of the run) by looping searches against the query_image budget. Verdict: keep Gemini (best-calibrated reader, never hallucinated wildly), treat visual-enumeration and unlabelled-chart questions as expected misses.
+
+### Post-budget loop damping (implemented & validated)
+
+Two changes end the runaway-loop failure mode:
+1. **`genai_graph/agent/middleware/wrap_up.py` (new)** — `WrapUpMiddleware` counts tool calls per question: at `soft_limit` (24) it injects a converge-now SystemMessage; at `hard_limit` (32) it strips ALL tools from the model request and forces a plain-text final answer — the run can no longer die at `recursion_limit` without an answer. Wired in `config/agents.yaml`.
+2. **Directive budget-rejection message** — `query_image` over-budget now orders: no further image queries or repeated searches; synthesize now.
+
+Validated on the exact pathological question (docqa_0460 rerun): **54 calls / 2.88M in-tokens / recursion crash → 11 calls / 102K in-tokens / clean answer** (−96% tokens). The middleware safety net did not need to fire — the hardened budget message alone triggered convergence. Still graded incorrect (answered 4, gold 5) — visual-enumeration questions remain expected misses.
 
 ## Remaining risks
 

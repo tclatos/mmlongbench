@@ -75,6 +75,9 @@ agents:
         mode: "stub"
       - class: genai_graph.agent.middleware.map_before_search.MapBeforeSearchMiddleware
         max_consecutive: 3
+      - class: genai_graph.agent.middleware.wrap_up.WrapUpMiddleware
+        soft_limit: 24
+        hard_limit: 32
     checkpointer:
       type: none
     backend:

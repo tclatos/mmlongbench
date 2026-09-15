@@ -76,10 +76,10 @@ def create_my_tools() -> list[BaseTool]:
     return [MyTool()]
 ```
 
-Reference factory in an agent profile (`config/agents.yaml`):
+Reference tool in an agent profile (`config/agents.yaml`):
 ```yaml
 tools:
-  - factory: mmlongbench.tools.my_tool.create_my_tools
+  - mmlongbench.tools.my_tool.create_my_tools
 ```
 
 ## LCEL Chains
@@ -141,7 +141,7 @@ agents:
     llm: default
     system_prompt: "You are a helpful assistant."
     tools:
-      - factory: mmlongbench.tools.example_tool.create_example_tools
+      - mmlongbench.tools.example_tool.create_example_tools
     mcp_servers: []
     skill_directories:
       - ${paths.project}/skills/custom

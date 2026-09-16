@@ -64,10 +64,10 @@ class BenchCommands(BaseBenchCommands):
             load_env()
             cfg_p = Path(config_path) if config_path else None
             cfg = load_bench_profile(profile_name=profile, config_path=cfg_p)
-            adapter = get_benchmark_adapter(cfg.adapter)
+            adapter = get_benchmark_adapter(cfg.dataset_adapter, project_root=cfg.project_root)
 
             dataset_dir = cfg.project_root / "data" / "mmlongbench"
-            pdfs_dir = Path(cfg.pdfs_dir)
+            pdfs_dir = Path(cfg.docgraph.paths.sources_dir)
 
             console.print(
                 "[bold cyan]Fetching MMLongBench-Doc questions from Hugging Face...[/bold cyan]"

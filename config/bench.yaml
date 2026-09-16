@@ -1,61 +1,35 @@
 # MMLongBench evaluation configuration.
-# Single profile for the complete benchmark run (135 docs / 1091 questions).
 # Select active profile via CLI `--profile <name>` (defaults to `default_profile`).
 # Outcome paths write under a dedicated directory per bench profile.
 
-default_profile: mistral_glm
-adapter: mmlongbench.adapter.MMLongBenchAdapter
+default_profile: default
+dataset_adapter: mmlongbench.adapter.MMLongBenchAdapter
 
-# Shared paths using OmegaConf variable interpolation.
+# Shared outcome paths across all bench profiles
 paths:
-  dataset_dir: ${paths.data_root}/mmlongbench
-  pdfs_dir: ${paths.data_root}/pdfs
-  markdown_dir: ${paths.data_root}/markdown_multi
-  kg_db: ${paths.data_root}/kg/mmlongbench_multi.db
   runs: ${paths.data_root}/mmlongbench/{profile}/runs.jsonl
   scores: ${paths.data_root}/mmlongbench/{profile}/scores.jsonl
   scores_summary: ${paths.data_root}/mmlongbench/{profile}/scores_summary.json
 
-graph_db:
-  default: ${paths.kg_db}   # used by 'cli docgraph' commands
-
 bench_profiles:
-  mistral_glm:
-    description: >-
-      Complete benchmark: GLM 5.3 Flash agent, Mistral OCR conversion
-      (HTML tables + VLM image descriptions), qwen3 embeddings, DeepSeek V4 judge.
-      Conversion is Mistral-OCR-only — no fallback converter on failure.
-    markdownize_profile: best
-    monitoring: null
-
-    llms:
-      agent: glm_5.3_flash@openrouter
-      build: deepseek-v4-flash-0731@openrouter
-      judge: deepSeek-V4.1-Flash@openrouter
-
-    build:
-      skip_ocr: false
-      force: false
-      llm: deepseek-v4-flash-0731@openrouter
-      structure_strategy: auto
-      summaries: true
-      workers: 8
-      summary_min_tokens: 800
-      context_safety_ratio: 0.9
-      embeddings: qwen3_06b@deepinfra
-      fts: true
-      chunk_size_tokens: 1500
+  default:
+    description: "GLM 5.3 Flash multimodal deep agent with DeepSeek V4 grader on MMLongBench-Doc"
+    docgraph_profile: default
+    agent_profile: default
 
     files:
       pathspecs:
         - "*"
+      docs: []
       limit: null
 
-    agent:
-      profile: default
-      folder_id: null
+    runner:
       concurrency: 12
+      folder_id: null
+      monitoring: null
 
-    judge:
+    grader:
       enabled: true
+      llm: deepSeek-V4.1-Flash@openrouter
       concurrency: 8
+

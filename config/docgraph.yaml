@@ -13,8 +13,8 @@ docgraph_profiles:
       saved_markdown_dir: ~/OneDrive/prj/mmlongbench/markdown
 
     llms:
-      summary: deepseek-v4-flash-0731@openrouter  # Structure discovery & section descriptions
-      image: gemini-2.5-flash@openrouter          # VLM for uncaptioned image descriptions and query_image
+      summary: deepseek-v4-flash-0731(none)@openrouter  # Structure discovery & section descriptions (reasoning disabled)
+      image: gemini-2.5-flash@openrouter                # VLM for uncaptioned image descriptions and query_image
 
     images:
       enabled: true                              # Enable multimodal visual capabilities

@@ -1,8 +1,23 @@
-
 #Improvements
+Don't loop after : 
+LLM call failed for NETFLIX_2015_10K_pdf.md branch [PART I]: Error code: 403 - {'error': {'message': 'Key limit exceeded (monthly limit). Manage it using https://openrouter.ai/workspaces/default/keys/f1478d7f50b9f060e764ae38ea8e4ae91d7bfffd3898e6a8ab339bd12c25efaf', 'code': 403}}
 
 
+Seen :
+09:54:59.852 | INFO    | Task run 'outline-ddoseattle-150627210357-lva1-app6891_95' - Finished in state Completed()
+[2026-09-17T07:55:10Z ERROR jsonish::jsonish::parser::multi_json_parser] Failed to parse JSON object: Failed to parse JSON
 
+Seen : 
+10:27:46-WARNING | merge.py:972 merge_relationships_batch- Batch LOAD FROM failed for HAS_SUBSECTION (13082 rows): Buffer manager exception: Unable to allocate memory! The buffer pool is full and no memory could be freed!; falling back to point merges
+
+10:27:46-WARNING | merge.py:972 merge_relationships_batch- Batch LOAD FROM failed for HAS_SUBSECTION (13082 rows): Buffer manager exception: Unable to allocate memory! The buffer pool is full and no memory could be freed!; falling back to point merges
+10:29:55-WARNING | stopwords.py:271 get_stopwords- Could not load spaCy stop words for 'en': No module named 'spacy'
+10:29:55-INFO    | ingest.py:377 ingest_document_graph- Document Graph ingest: 135 processed (1 skipped), 0 failed, 13216 section(s), 0 chunk(s), 13350 rel(s)
+10:29:58-SUCCESS | build.py:284 build_document_graph- Document Graph build complete: {'documents_processed': 135, 'documents_failed': 0, 'documents_skipped': 1, 'sections_created': 13216, 'sections_summarized': 2507, 'chunks_created': 0, 'relationships_created': 13350, 'embeddings_model': None, 'embeddings_dim': None, 'fts_index': 'section_fts', 'warnings': [], 'db_path': '/home/tcl/prj/mmlongbench/data/kg/mmlongbench_multi.db', 'files_degraded': 0, 'timings': {'ingest_s': 288.694}}
+
+
+# Perf
+ Parallelize document_graph_factory.py:232 extract_outlines
     
 
     Cache this description in a file, so we won't have to call an LLM in case of re-run. Make a generic mechanism to cache BAML calls (key is )

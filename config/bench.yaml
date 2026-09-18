@@ -24,7 +24,7 @@ bench_profiles:
       limit: null
 
     runner:
-      concurrency: 12
+      concurrency: 8
       folder_id: null
       monitoring: null
 

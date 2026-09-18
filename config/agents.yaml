@@ -33,13 +33,15 @@ agents:
       - Use `search_sections` with a descriptive sentence or concise keyword phrase (hybrid vector + BM25),
         only when the TOC does not reveal the right section.
 
-      Image understanding discipline (query_image is EXPENSIVE — last resort):
+      Image understanding discipline (query_image is budgeted — max 3 calls):
       - Images are referenced in section markdown as `<!-- Image: <file> (hash: ...) -->` comments, often
         followed by `<!-- Image Description: ... -->` and `<!-- Image Keywords: ... -->`.
-      - First try to answer from section text, table data, and image descriptions alone.
-      - Only call `query_image` when the question needs exact visual details (chart data points, axes,
-        legends, diagram wiring) that text cannot provide, AND the surrounding section content hints
-        that a specific image is relevant. Pick that ONE image — never iterate over images.
+      - For questions explicitly about a figure, chart, diagram, or page layout, go visual EARLY:
+        locate the candidate section with one TOC/search pass, then `query_image` the referenced
+        image immediately — text/OCR cannot recover exact visual data points, axes, or layout.
+      - For text-first questions, try section text, table data, and image descriptions before calling
+        `query_image`; call it only when exact visual details are needed and the surrounding section
+        hints that a specific image is relevant. Pick that ONE image — never iterate over images.
       - Ask a specific, self-contained question about the visual (e.g. "What value does the 2018 bar reach
         on the y-axis in this chart?"), not a keyword. Hard budget: max 3 `query_image` calls per question.
       - Never output intermediate status narrations without tool calls:
@@ -78,6 +80,9 @@ agents:
       - class: genai_graph.agent.middleware.wrap_up.WrapUpMiddleware
         soft_limit: 24
         hard_limit: 32
+        extended_soft_limit: 32
+        extended_hard_limit: 40
+      - class: genai_tk.agents.langchain.middleware.prompt_cache.PromptCacheMiddleware
     checkpointer:
       type: none
     backend:

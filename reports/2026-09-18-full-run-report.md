@@ -12,7 +12,7 @@ It is difficult for three reasons:
 2. **Mixed content.** The answers are not only in prose. They hide in tables, bar and line charts, figures, and page layouts. Reading a chart is closer to *looking* at a picture than reading text.
 3. **Trick questions.** About **22% of the questions have no answer in the document at all.** A good system must say *"this is not answerable"* instead of inventing something plausible — a direct probe for hallucination. Another third of the questions require combining evidence from **multiple pages**.
 
-The best publicly documented system on this benchmark (as of January 2026, a model called TeleMM2.0) answers **56%** of questions correctly. GPT-4o manages **46%**. Long-document understanding remains an unsolved problem.
+The best documented systems on this benchmark answer in the mid-to-high 50s: NVIDIA's Nemotron-3-Nano-Omni-30B-A3B reports **57.5%**, the leaderboard-leading TeleMM2.0 (Jan 2026) reaches **56.1%**, and GPT-4o manages **46%**. Long-document understanding remains an unsolved problem.
 
 ### What our system does
 
@@ -62,17 +62,21 @@ Fine-grained on the 619 clean-normal runs:
 
 ## 4. Comparison with SOTA (factual)
 
-Published numbers (official leaderboard `OpenIXCLab/mmlongbench-doc-results` on Hugging Face; paper: NeurIPS 2024 Datasets & Benchmarks Spotlight, arXiv:2407.01523):
+Published numbers. The live leaderboard is maintained by the benchmark authors on Hugging Face (`OpenIXCLab/mmlongbench-doc` Space, backed by the `OpenIXCLab/mmlongbench-doc-results` dataset); the original paper is NeurIPS 2024 Datasets & Benchmarks Spotlight (arXiv:2407.01523). All official-protocol models below are fed page screenshots end-to-end:
 
 | Model (official protocol) | Overall Acc | Cross-page | Unanswerable |
 |---|---|---|---|
-| TeleMM2.0 (Jan 2026) — best published | 56.1% | 48.6% | 46.2% |
+| Nemotron-3-Nano-Omni-30B-A3B (NVIDIA, vendor-reported) | **57.5** | — | — |
+| TeleMM2.0 (Jan 2026) — best on official leaderboard | 56.1% | 48.6% | 46.2% |
 | GPT-4.1 (Apr 2025) | 49.7% | 49.9% | 26.0% |
 | GPT-4o (Nov 2024) | 46.3% | 41.4% | 34.1% |
+| Qwen3-Omni-30B-A3B (closest open competitor) | 49.5 | — | — |
+
+Sources for the Nemotron entries: NVIDIA's model comparisons circulated in the Radiant blog "How to run Nemotron Omni" ([radiant.co](https://radiant.co/blog/how-to-run-nemotron-omni)), and NVIDIA's own engineering dev note on training the model (NeMo Data Designer, [docs.nvidia.com](https://docs.nvidia.com/nemo/datadesigner/dev-notes/vlm-long-document-understanding)). The dev note documents the full training journey against MMLongBench-Doc as the primary eval target: the base model started at 26% (answering "Unanswerable" to almost everything), and an OCR-text-only QA pipeline plateaued around 28% — the bulk of the gains came from visually-grounded synthetic data targeting charts, tables and diagrams. That independent finding reinforces this report's recommendation (§6) that figure/layout questions are where visually-grounded capability pays off.
 
 **Protocol caveat (important).** The official evaluation feeds all ~47 page screenshots per document end-to-end to a vision model, extracts a short answer via a 3-stage GPT-4o protocol, and scores exact match. Our pipeline is agentic retrieval over OCR markdown + graph navigation (vision used sparingly), scored by an LLM judge with partial credit. The two protocols are **not directly comparable** — our judge is likely more lenient than exact match, while our input is lossier (OCR) but better structured.
 
-With that caveat, on clean runs this system sits **well above the published SOTA** (~70% vs 56.1%), and the sub-metrics agree on the most comparable slices: cross-page 64.0% vs 48.6%, unanswerable 66.9% vs 46.2%. This is consistent with the paper's own finding that text-based (OCR) pipelines beat end-to-end page-image models on long documents; the agentic graph navigation pushes that advantage further.
+With that caveat, on clean runs this system sits **well above every published number** on this benchmark (~70% vs 57.5 for the best reported model), and the sub-metrics agree on the most comparable slices: cross-page 64.0% vs 48.6%, unanswerable 66.9% vs 46.2% (official leaderboard models). This is consistent with the paper's own finding that text-based (OCR) pipelines beat end-to-end page-image models on long documents; the agentic graph navigation pushes that advantage further.
 
 ## 5. What went wrong overnight (buffer-manager degradation)
 
